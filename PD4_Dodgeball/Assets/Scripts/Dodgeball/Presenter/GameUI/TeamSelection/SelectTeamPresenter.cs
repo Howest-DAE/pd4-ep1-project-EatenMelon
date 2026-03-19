@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 
 namespace Dodgeball.Presenter
 {
-	public class SelectTeamPresenter : UIPresenterBase<SelectTeamModel>
+	public class SelectTeamPresenter : PresenterBase<SelectTeamModel>
 	{
 		private readonly UIDocument _document;
 

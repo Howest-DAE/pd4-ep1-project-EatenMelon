@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 namespace Dodgeball.Presenter
 {
 
-	public class PlayerTeamSelectionPresenter : UIPresenterBase<PlayerTeamSelectionModel>
+	public class PlayerTeamSelectionPresenter : PresenterBase<PlayerTeamSelectionModel>
 	{
 		private VisualElement _redImageElement;
 		private VisualElement _blueImageElement;
