@@ -2,6 +2,10 @@
 
 Welcome to the Dodgeball Multiplayer starter project. This repository contains the base local single-player gameplay (Player vs. PC). Your task is to transform this project into a fully functional **Online Multiplayer** game using the **Client-Host architecture** and the techniques covered in this course.
 
+**⚠️⚠️⚠️ This readme file doesn't contain all of the requirements for the exam!!!⚠️⚠️⚠️**
+
+*For the complete and final requirements, please refer to the Exam Requirements PDF posted on Leho, under the Exam Project module.*
+
 ## **🎯 Project Goal**
 
 Convert the existing local gameplay into a networked experience where two players can compete over the internet. You are responsible for implementing the **networking logic**, **user authentication** via PlayFab, and a **custom ASP.NET Core backend**.
@@ -10,7 +14,7 @@ Convert the existing local gameplay into a networked experience where two player
 
 On the day of the exam, you must arrive with a **fully functional starter project** containing all features listed below.
 
-* **Duration:** 3 hours \+ 1 hour for defense/adjustments.  
+* **Duration:** 3 \+ 1 hours.
 * **The Challenge:** During the exam, you will be asked to implement new features or modify existing ones on top of your prepared project.  
 * **Grading Criteria:** \* Points are awarded based on the **correct use of the techniques taught in class** 
   * **Oral Defense:** You must be able to explain everything. Code you cannot explain will not contribute to your grade.  
