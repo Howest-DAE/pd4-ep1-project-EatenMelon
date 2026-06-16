@@ -1,15 +1,15 @@
-using MVP.Model;
+using Assets.Scripts.MVP.Model;
+using Unity.Netcode;
 
-namespace Dodgeball.Model
+namespace Assets.Scripts.Dodgeball.Model.TeamSelection
 {
 	public class PlayerTeamSelectionModel : ModelBase
 	{
-		private bool _isCurrentPlayer;
 		private bool _isReady;
 		private PlayerColor _selectedColor;
 
 		public ulong PlayerId { get; }
-		public bool IsCurrentPlayer { get; }
+		public bool IsCurrentPlayer { get => NetworkManager.Singleton.LocalClientId == PlayerId; }
 
 
 		public bool IsReady
@@ -36,10 +36,9 @@ namespace Dodgeball.Model
 			}
 		}
 
-		public PlayerTeamSelectionModel(ulong playerId, bool isCurrentPlayer)
+		public PlayerTeamSelectionModel(ulong playerId)
 		{
 			PlayerId = playerId;
-			IsCurrentPlayer = isCurrentPlayer;
 		}
 	}
 }

@@ -1,37 +1,27 @@
-namespace Dodgeball.Model.GameStates
+using Unity.Netcode;
+
+namespace Assets.Scripts.Dodgeball.Model.GameStates
 {
 	public class WaitingForOtherPlayerState : BaseGameState
 	{
-		private float _timer;//TODO: remove timer
-		public WaitingForOtherPlayerState(GameStatesFSM fsm) : base(fsm)
+		public WaitingForOtherPlayerState(GameStatesFsm fsm) : base(fsm)
 		{
 		}
 
-		public override void OnEnter()
-		{
-			base.OnEnter();
+		//DONE: detect when players join -> 
+		//When enough players are joined (2), go to the next state
+		//FSM.TransitionTo(FSM.SelectTeamState);
 
-			//TODO: detect when players join -> 
-			//When enough players are joined (2), go to the next state
-			//FSM.TransitionTo(FSM.SelectTeamState);
-
-			//FAKE waiting: wait 2 seconds
-			_timer = 2f;
-		}
+		//todo: use events instead of checking in the update loop
+		//NetworkManager.Singleton.OnClientConnectedCallback
 
 		public override void Update(float deltaTime)
 		{
 			base.Update(deltaTime);
-
-			//FAKE: wait 2 seconds before showing the Team selection.
-			_timer -= deltaTime;
-			if (_timer <= 0f)
+			if (NetworkManager.Singleton.ConnectedClients.Count >= 2)
 			{
 				FSM.TransitionTo(FSM.SelectTeamState);
 			}
-
 		}
-
-
 	}
 }

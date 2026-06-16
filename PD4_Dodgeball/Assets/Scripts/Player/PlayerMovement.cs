@@ -1,137 +1,153 @@
+using Assets.Scripts.Player.Strategies;
 using System;
+using Unity.Netcode;
 using UnityEngine;
 
-public class PlayerMovement : MonoBehaviour
+namespace Assets.Scripts.Player
 {
-	private bool _crouching = false;
-	public bool IsCrouching => _crouching;
-
-	[SerializeField]
-	private CharacterController _characterControl;
-
-	//Movement
-	[Header("Movement")]
-	[SerializeField]
-	private float _moveSpeed = 3f;
-	[SerializeField]
-	private float _crouchSpeedModifier = 0.3f;
-	[SerializeField]
-	private float _jumpSpeed = 10f;
-	private float _verticalSpeed = 0f;
-	private bool _jumpPressed = false;
-
-	[Header("Rotation")]
-	//Look rotation
-	[SerializeField]
-	private Transform _lookRotPivot;
-
-	private Transform _cameraTransform;
-
-	public IPlayerMoveStrategy MoveStrategy
+	public class PlayerMovement : NetworkBehaviour
 	{
-		get => _moveStrategy;
-		set
+		private NetworkVariable<bool> _crouching = new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+		public bool IsCrouching => _crouching.Value;
+
+		[SerializeField]
+		private CharacterController _characterControl;
+
+		//Movement
+		[Header("Movement")]
+		[SerializeField]
+		private float _moveSpeed = 3f;
+		[SerializeField]
+		private float _crouchSpeedModifier = 0.3f;
+		[SerializeField]
+		private float _jumpSpeed = 10f;
+		private float _verticalSpeed = 0f;
+		private NetworkVariable<bool> _jumpPressed = new(false);
+		private Vector3 _movementInput;
+		private Vector3 _lookDirectionInput;
+
+		[Header("Rotation")]
+		//Look rotation
+		[SerializeField]
+		private Transform _lookRotPivot;
+
+		public PlayerInputMoveStrategy MoveStrategy
 		{
-			if (_moveStrategy == value) return;
-			if (_moveStrategy != null)
+			get => _moveStrategy;
+			set
 			{
-				_moveStrategy.JumpRequested -= _moveStrategy_JumpRequested;
-				_moveStrategy.CrouchStarted -= _moveStrategy_CrouchStarted;
-				_moveStrategy.CrouchEnded -= _moveStrategy_CrouchEnded;
+				if (_moveStrategy == value) return;
+				if (_moveStrategy != null)
+				{
+					_moveStrategy.JumpRequested -= _moveStrategy_JumpRequested;
+					_moveStrategy.CrouchStarted -= _moveStrategy_CrouchStarted;
+					_moveStrategy.CrouchEnded -= _moveStrategy_CrouchEnded;
+				}
+
+				_moveStrategy = value;
+				if (_moveStrategy == null) return;
+
+				_moveStrategy.JumpRequested += _moveStrategy_JumpRequested;
+				_moveStrategy.CrouchStarted += _moveStrategy_CrouchStarted;
+				_moveStrategy.CrouchEnded += _moveStrategy_CrouchEnded;
+			}
+		}
+
+		private void _moveStrategy_CrouchEnded(object sender, EventArgs e)
+		{
+			_crouching.Value = false;
+		}
+
+		private void _moveStrategy_CrouchStarted(object sender, EventArgs e)
+		{
+			_crouching.Value = true;
+		}
+
+		private void _moveStrategy_JumpRequested(object sender, EventArgs e)
+		{
+			RequestJumpRpc();
+		}
+
+		[Rpc(SendTo.Server)]
+		private void RequestJumpRpc()
+		{
+			_jumpPressed.Value = true;
+		}
+
+		private PlayerInputMoveStrategy _moveStrategy;
+
+		void Start()
+		{
+			Cursor.lockState = CursorLockMode.Locked;
+		}
+
+		void Update()
+		{
+			if (IsOwner)
+			{
+				// Move
+				_movementInput = MoveStrategy?.CalculateMovement() ?? Vector3.zero;
+
+				// Look
+				_lookDirectionInput = MoveStrategy?.CalculateLookDirection() ?? Vector3.zero;
+
+				//vertical
+				_lookRotPivot.rotation = Quaternion.LookRotation(_lookDirectionInput);
+			}
+		}
+
+		[Rpc(SendTo.Server)]
+		private void MoveRpc(Vector3 movementInput, Vector3 lookDirectionInput)
+		{
+			movementInput.y = 0; //sanitize
+
+			//horizontal
+			Vector3 horizontalLook = lookDirectionInput;
+			horizontalLook.y = 0f;
+			transform.rotation = Quaternion.LookRotation(horizontalLook);
+
+			// Crouch
+			if (_crouching.Value)
+			{
+				movementInput *= _crouchSpeedModifier; //DONE: this needs to happen server side!!
 			}
 
-			_moveStrategy = value;
-			if (_moveStrategy == null) return;
-
-			_moveStrategy.JumpRequested += _moveStrategy_JumpRequested;
-			_moveStrategy.CrouchStarted += _moveStrategy_CrouchStarted;
-			_moveStrategy.CrouchEnded += _moveStrategy_CrouchEnded;
+			_characterControl.Move(_moveSpeed * Time.fixedDeltaTime * movementInput.normalized); //normalize for sanitization
 		}
-	}
 
-	private void _moveStrategy_CrouchEnded(object sender, EventArgs e)
-	{
-		_crouching = false;
-	}
-
-	private void _moveStrategy_CrouchStarted(object sender, EventArgs e)
-	{
-		_crouching = true;
-	}
-
-	private void _moveStrategy_JumpRequested(object sender, EventArgs e)
-	{
-		_jumpPressed = true;
-	}
-
-
-	private bool _isCrouched;
-	private IPlayerMoveStrategy _moveStrategy;
-
-	void Start()
-	{
-		Cursor.lockState = CursorLockMode.Locked;
-		_cameraTransform = Camera.main.transform;
-	}
-
-
-
-
-	// Update is called once per frame
-	void Update()
-	{
-		// Move
-		Vector3 movement = MoveStrategy.CalculateMovement();
-
-		// Look
-		Vector3 lookDirection = MoveStrategy.CalculateLookDirection();
-
-		//horizontal
-		Vector3 horizontalLook = lookDirection;
-		horizontalLook.y = 0f;
-		transform.rotation = Quaternion.LookRotation(horizontalLook);
-
-		//vertical
-		_lookRotPivot.rotation = Quaternion.LookRotation(lookDirection);
-
-		// Crouch
-		if (_crouching)
+		private void FixedUpdate()
 		{
-			movement *= _crouchSpeedModifier; //TODO: this needs to happen server side!!
+			if (IsOwner)
+			{
+				MoveRpc(_movementInput, _lookDirectionInput);
+			}
+
+			// Gravity
+			ApplyGravity();
+
+			//Jump
+			if (_jumpPressed.Value)
+			{
+				JumpRpc();
+			}
 		}
 
-		_characterControl.Move(movement * _moveSpeed * Time.deltaTime);
-
-
-	}
-
-
-	private void FixedUpdate()
-	{
-		// Gravity
-		ApplyGravity();
-
-		//Jump
-		if (_jumpPressed)
+		[Rpc(SendTo.Server)]
+		private void JumpRpc()
 		{
 			if (_characterControl.isGrounded)
-			{
 				_verticalSpeed = _jumpSpeed;
-			}
-			_jumpPressed = false;
+			_jumpPressed.Value = false;
 		}
 
-	}
-
-
-
-	void ApplyGravity()
-	{
-		_verticalSpeed += Time.fixedDeltaTime * Physics.gravity.y;
-		_characterControl.Move(_verticalSpeed * Time.fixedDeltaTime * Vector3.up);
-		if (_characterControl.isGrounded)
+		void ApplyGravity()
 		{
-			_verticalSpeed = 0f;
+			_verticalSpeed += Time.fixedDeltaTime * Physics.gravity.y;
+			_characterControl.Move(_verticalSpeed * Time.fixedDeltaTime * Vector3.up);
+			if (_characterControl.isGrounded)
+			{
+				_verticalSpeed = 0f;
+			}
 		}
 	}
 }

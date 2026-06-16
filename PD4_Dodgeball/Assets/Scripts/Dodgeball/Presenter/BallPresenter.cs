@@ -1,12 +1,15 @@
-using Dodgeball.Model;
-using MVP.Presenter;
+using Assets.Scripts.Dodgeball.Model;
+using Assets.Scripts.Dodgeball.Network;
+using Assets.Scripts.MVP.Presenter;
 using System;
 using System.Collections;
+using Unity.Netcode;
 using UnityEngine;
 
 
-namespace Dodgeball.Presenter
+namespace Assets.Scripts.Dodgeball.Presenter
 {
+	[RequireComponent(typeof(BallSync))]
 	public class BallPresenter : PresenterMonobehaviour<BallModel>
 	{
 		int _ignorePlayerLayer = 0, _defaultLayer;
@@ -21,12 +24,16 @@ namespace Dodgeball.Presenter
 
 		private Material _defaultMat;
 
+		public BallSync Sync { get; private set; }
+
 		protected override void Awake()
 		{
 			_defaultMat = _renderer.sharedMaterial;
 			_defaultLayer = gameObject.layer;
 			_ignorePlayerLayer = LayerMask.NameToLayer("IgnorePlayer");
-			Model = new BallModel();
+			Model = new();
+			Sync = GetComponent<BallSync>();
+			Sync.Model = Model;
 			base.Awake();
 		}
 
@@ -100,9 +107,7 @@ namespace Dodgeball.Presenter
 				hitPlayer.Model.OnTouchedByBall(Model);
 			}
 			//no longer player ball
-			Model.IsPlayerBall = false;
-
+			if (NetworkManager.Singleton.IsServer) Sync.SetPlayerBallRpc(false);
 		}
-
 	}
 }

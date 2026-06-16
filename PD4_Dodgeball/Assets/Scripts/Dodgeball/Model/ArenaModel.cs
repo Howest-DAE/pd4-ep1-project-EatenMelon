@@ -1,8 +1,8 @@
-using MVP.Model;
+using Assets.Scripts.MVP.Model;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Dodgeball.Model
+namespace Assets.Scripts.Dodgeball.Model
 {
 
 	/// <summary>
@@ -10,8 +10,10 @@ namespace Dodgeball.Model
 	/// </summary>
 	public class ArenaModel : ModelBase
 	{
-		private List<PlayerModel> _players = new List<PlayerModel>();
-		private List<BallModel> _balls = new List<BallModel>();
+		public int MatchId { get; set; }
+
+		private List<PlayerModel> _players = new();
+		private List<BallModel> _balls = new();
 
 		public void AddPlayer(PlayerModel player)
 		{
@@ -27,5 +29,9 @@ namespace Dodgeball.Model
 			return _players.FirstOrDefault(p => p.PlayerId == playerId);
 		}
 
+		public IEnumerable<PlayerModel> GetPlayers()
+		{
+			return _players;
+		}
 	}
 }

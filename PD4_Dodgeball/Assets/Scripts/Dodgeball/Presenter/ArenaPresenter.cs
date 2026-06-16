@@ -1,26 +1,27 @@
-using Dodgeball.Model;
-using MVP.Presenter;
+using Assets.Scripts.Dodgeball.Model;
+using Assets.Scripts.MVP.Presenter;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using Unity.Netcode;
 using UnityEngine;
 
-namespace Dodgeball.Presenter
+namespace Assets.Scripts.Dodgeball.Presenter
 {
 	public class ArenaPresenter : PresenterMonobehaviour<ArenaModel>
 	{
 		[SerializeField]
 		private SpawnArea[] _spawns;
 		[SerializeField]
-		private List<Transform> _ballSpawnLocations = new List<Transform>();
+		private List<Transform> _ballSpawnLocations = new();
 
 		[SerializeField]
 		private GameObject _playerPrefab;
 		[SerializeField]
 		private GameObject _ballPrefab;
 
-		private List<PlayerPresenter> _spawnedPlayers = new List<PlayerPresenter>();
-		private List<BallPresenter> _spawnedBalls = new List<BallPresenter>();
+		private List<PlayerPresenter> _spawnedPlayers = new();
+		private List<BallPresenter> _spawnedBalls = new();
 
 		public ReadOnlyCollection<PlayerPresenter> SpawnedPlayers => _spawnedPlayers.AsReadOnly();
 		public ReadOnlyCollection<BallPresenter> SpawnedBalls => _spawnedBalls.AsReadOnly();
@@ -49,22 +50,22 @@ namespace Dodgeball.Presenter
 
 		public void SpawnBall(int spawnLocationIndex)
 		{
+			if (!NetworkManager.Singleton.IsHost) return;
 			if (spawnLocationIndex == -1)
 			{
 				spawnLocationIndex = Random.Range(0, _ballSpawnLocations.Count);
 			}
 			Transform spawnLocation = _ballSpawnLocations[spawnLocationIndex];
-			BallPresenter ballPresenter = Instantiate(_ballPrefab, spawnLocation.position, Quaternion.identity).GetComponent<BallPresenter>();
+			Instantiate(_ballPrefab, spawnLocation.position, Quaternion.identity).GetComponent<NetworkObject>().Spawn();
 		}
 
 		public void SpawnPlayer(ulong playerId)
 		{
 			PlayerModel model = Model.GetPlayer(playerId);
-			var spawnLocation = GetRandomPlayerSpawn(model.Color);
+			var (position, rotation) = GetRandomPlayerSpawn(model.Color);
 
-			GameObject playerGo = Instantiate(_playerPrefab, spawnLocation.pos, spawnLocation.rot);
-			var playerPresenter = playerGo.GetComponent<PlayerPresenter>();
-			playerPresenter.PlayerId = playerId; //TODO: remove this line, will be replaced by networked playerId
+			GameObject playerGo = Instantiate(_playerPrefab, position, rotation);
+			playerGo.GetComponent<NetworkObject>().SpawnWithOwnership(playerId);
 		}
 
 		public void AddPlayerPresenter(PlayerPresenter presenter)
@@ -97,19 +98,17 @@ namespace Dodgeball.Presenter
 		}
 
 		//Player spawn randomization
-		public (Vector3 pos, Quaternion rot) GetRandomPlayerSpawn(PlayerColor color)
+		public (Vector3 position, Quaternion rotation) GetRandomPlayerSpawn(PlayerColor color)
 		{
 			var spawns = _spawns.Where(s => s.Color == color).ToList();
-			SpawnArea spawn = spawns.Any() ?
-				(spawns.Count == 1 ? spawns[0] : spawns[Random.Range(0, spawns.Count)])
-				: null;
 
-			Quaternion rotation = Quaternion.identity;
-			if (spawn != null)
-			{
-				rotation = spawn.transform.rotation;
-			}
-			return (spawn?.GetRandomVector() ?? Vector3.zero, rotation);
+			if (!spawns.Any()) return (Vector3.zero, Quaternion.identity);
+
+			var spawn = spawns.Count == 1 ? spawns[0] : spawns[Random.Range(0, spawns.Count)];
+
+			var rotation = spawn.transform.rotation;
+
+			return (spawn.GetRandomVector(), rotation);
 		}
 
 	}

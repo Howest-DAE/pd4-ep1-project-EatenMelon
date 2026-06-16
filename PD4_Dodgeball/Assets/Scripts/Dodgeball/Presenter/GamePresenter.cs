@@ -1,8 +1,9 @@
-using Dodgeball.Model;
-using MVP.Presenter;
+using Assets.Scripts.Dodgeball.Model;
+using Assets.Scripts.MVP.Presenter;
+using Assets.Scripts.Player;
 using UnityEngine;
 
-namespace Dodgeball.Presenter
+namespace Assets.Scripts.Dodgeball.Presenter
 {
 	public class GamePresenter : PresenterMonobehaviour<GameModel>
 	{
@@ -19,23 +20,20 @@ namespace Dodgeball.Presenter
 			Model.MatchStarted += Model_MatchStarted;
 		}
 
-		private void Model_MatchStarted(object sender, EventArgs<MatchModel> e)
+		private async void Model_MatchStarted(object sender, EventArgs<MatchModel> e)
 		{
-			_matchPresenter.StartMatch(e.Value);
+			await _matchPresenter.StartMatch(e.Value);
 		}
 
-		// Start is called once before the first execution of Update after the MonoBehaviour is created
 		protected override void Start()
 		{
 			base.Start();
 		}
 
-		// Update is called once per frame
 		protected override void Update()
 		{
 			Model.Update(Time.deltaTime);
 			base.Update();
-
 		}
 
 		protected override void OnModelPropertyChanged(string propertyName)
@@ -60,8 +58,5 @@ namespace Dodgeball.Presenter
 
 			}
 		}
-
-
-
 	}
 }

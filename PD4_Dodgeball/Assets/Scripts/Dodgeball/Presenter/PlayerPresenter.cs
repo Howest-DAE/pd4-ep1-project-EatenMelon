@@ -1,9 +1,18 @@
-using Dodgeball.Model;
-using MVP.Presenter;
+using Assets.Scripts.Dodgeball.Model;
+using Assets.Scripts.Effects;
+using Assets.Scripts.HttpHandlers;
+using Assets.Scripts.MVP.Presenter;
+using Assets.Scripts.Player;
+using Assets.Scripts.Player.Strategies;
+using System.Linq;
+using TMPro;
 using UnityEngine;
 
-namespace Dodgeball.Presenter
+namespace Assets.Scripts.Dodgeball.Presenter
 {
+	[RequireComponent(typeof(PlayerThrow))]
+	[RequireComponent(typeof(PlayerMovement))]
+	[RequireComponent(typeof(PlayerCameraAttach))]
 	public class PlayerPresenter : PresenterMonobehaviour<PlayerModel>
 	{
 		//Inspector fields
@@ -19,32 +28,27 @@ namespace Dodgeball.Presenter
 		[SerializeField]
 		private GameObject _aimVisual;
 
+		[SerializeField]
+		private TextMeshProUGUI _displayText;
+
 		//Properties
 		public PlayerColor Color => Model.Color;
 		public ArenaPresenter ArenaPresenter { get; set; }
-		public IBallThrowingStrategy ThrowStrategy { get; set; }
+		public InputBallThrowStrategy ThrowStrategy { get; set; }
 
 
-		//TODO: replace with Networked PlayerId
-		public ulong PlayerId { get; set; }
+		//DONE: replace with Networked PlayerId
+		public ulong PlayerId => Model.PlayerId;
 
 		protected override void Awake()
 		{
 			SetControlledByPlayer(false);
 			base.Awake();
 		}
-		// Start is called once before the first execution of Update after the MonoBehaviour is created
-		protected override void Start()
+
+		public void DisplayName(string name)
 		{
-			//Find Model from MatchModel
-			ArenaPresenter = FindAnyObjectByType<ArenaPresenter>();
-			Model = ArenaPresenter.Model.GetPlayer(PlayerId);
-			ArenaPresenter.AddPlayerPresenter(this);
-
-			SetControlledByPlayer(PlayerId == 0); // TODO: check for the local player id
-
-			base.Start();
-
+			if (_displayText != null) _displayText.text = name;
 		}
 
 		protected override void OnModelUpdated(PlayerModel previousModel)
@@ -61,13 +65,15 @@ namespace Dodgeball.Presenter
 			}
 		}
 
-		private void Model_HitByBall(object sender, PlayerHitEventArgs e)
+		private async void Model_HitByBall(object sender, PlayerHitEventArgs e)
 		{
 			BallPresenter ball = ArenaPresenter.GetBallPresenter(e.Ball);
 			if (ball == null) return;
 
 			var particles = Instantiate(_hitParticlesPrefab).GetComponent<HitParticles>();
 			particles.Spawn(e.SourcePlayerColor, ball.transform.position, this);
+
+			await BackendHandler.PostHitAsync(ArenaPresenter.Model.MatchId, new() { TargetPlayFabId = Model.PlayFabId, ThrowerPlayFabId = ArenaPresenter.Model.GetPlayers().FirstOrDefault(p => p.PlayFabId != Model.PlayFabId).PlayFabId });
 		}
 
 		protected override void OnModelPropertyChanged(string propertyName)
@@ -87,12 +93,6 @@ namespace Dodgeball.Presenter
 				PlayerInputActions inputActions = presenter.InputActionConfig.InputActions;
 				GetComponent<PlayerMovement>().MoveStrategy = new PlayerInputMoveStrategy(transform, Camera.main.transform, inputActions, presenter.InputActionConfig.RotationSettings);
 				GetComponent<PlayerThrow>().ThrowingStrategy = new InputBallThrowStrategy(inputActions);
-			}
-			else
-			{
-				AITargetSelector targetSelector = new AITargetSelector(this);
-				GetComponent<PlayerMovement>().MoveStrategy = new PlayerAIMoveStrategy(ArenaPresenter, this, targetSelector, _jumpObstaclesMask);
-				GetComponent<PlayerThrow>().ThrowingStrategy = new AIBallThrowingStrategy(targetSelector, this);
 			}
 			GetComponent<PlayerCameraAttach>().enabled = controlled;
 

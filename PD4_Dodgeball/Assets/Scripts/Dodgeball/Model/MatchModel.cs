@@ -1,7 +1,7 @@
-using MVP.Model;
+using Assets.Scripts.MVP.Model;
 using System;
 
-namespace Dodgeball.Model
+namespace Assets.Scripts.Dodgeball.Model
 {
 	/// <summary>
 	/// MatchModel keeps track of the scores and the time.
@@ -9,6 +9,8 @@ namespace Dodgeball.Model
 	/// </summary>
 	public class MatchModel : ModelBase
 	{
+		public int Id { get; set; }
+
 		public event EventHandler MatchEnded; //Gets invoked when time runs out
 
 		public int SecondsLeft
@@ -54,7 +56,7 @@ namespace Dodgeball.Model
 		private int _scoreRed;
 		private int _scoreBlue;
 
-		private const int _matchDuration = 60;//seconds
+		private const int _matchDuration = 20;//seconds
 		private TimeSpan _timeLeft = TimeSpan.Zero;
 
 		public MatchModel(ulong redPlayerId, ulong bluePlayerId)
